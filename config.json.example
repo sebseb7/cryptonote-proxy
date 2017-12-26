@@ -1,5 +1,6 @@
 {
-	"port":34349,
+	"workerport":34349,
+	"httpport":34350,
 	"default":"itns",
 	"login":
 	{ 

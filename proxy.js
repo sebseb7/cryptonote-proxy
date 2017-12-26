@@ -10,12 +10,13 @@ process.on("uncaughtException", function(error) {
 });
 
 
-
-var io = require('socket.io')(16787);
-
 var config = JSON.parse(fs.readFileSync('config.json'));
-var localport = config.port;
+var localport = config.workerport;
 var login = config.login;
+
+var io = require('socket.io')(config.httpport);
+console.log("start http interface on port %d ", config.httpport);
+
 
 
 
