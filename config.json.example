@@ -1,0 +1,27 @@
+{
+	"port":34349,
+	"default":"itns",
+	"login":
+	{ 
+		"itns": {
+			"name":"izkfjdhgkjdsfhgslkj",
+			"host":"45.32.171.89",
+			"port":"9999"},
+		"xun": {
+			"name":"Xunsdkjhfskdjhfksjdfh",
+			"host":"78.47.92.206",
+			"port":"9999"},
+		"etn": {
+			"name":"etnfhjsdkhskdjfhksjdhf",
+			"host":"pool.etn.spacepools.org",
+			"port":"7777"},
+		"msr": {
+			"name":"5dfkjghdfkjgdhfgkjhdjfkg",
+			"host":"masari.superpools.net",
+			"port":"8889"},
+		"nh": {
+			"name":"38kjdhfgkjdfhgkjdfhgkdjfhg",
+			"host":"cryptonight.eu.nicehash.com",
+			"port":"3355"}
+	}
+}

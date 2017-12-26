@@ -1,0 +1,16 @@
+{
+    "name": "cryptonote-proxy",
+    "version": "0.0.1",
+    "license": "0bsd",
+    "authors": "seb",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/sebseb7/cryptonote-proxy"
+    },
+    "dependencies": {
+        "socket.io": "*"
+    },
+    "engines": {
+        "node": ">=4"
+    }
+}
