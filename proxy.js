@@ -41,8 +41,6 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	var idx;
 	for (var pool in pools) if (pools[pool].symbol === coin) idx = pool;
 
-	console.log(idx);
-
 	console.log('connect to %s %s',pools[idx].host, pools[idx].port);
 	
 	var remotesocket = new net.Socket();
@@ -51,8 +49,8 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	remotesocket.on('connect', function (data) {
 
 		console.log('new login to '+coin);
-		var request = {"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"cast_xmr/0.8.0"},"id":1};
-		remotesocket.write(JSON.stringify(request)+"\r\n");
+		var request = {"id":1,"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
+		remotesocket.write(JSON.stringify(request)+"\n");
 	});
 	
 	remotesocket.on('data', function(data) {
@@ -89,7 +87,7 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 			console.log(data+' (else) from '+coin+' '+JSON.stringify(request));
 		}
 			
-		localsocket.write(JSON.stringify(request)+"\r\n");
+		localsocket.write(JSON.stringify(request)+"\n");
 	});
 	
 	
@@ -107,7 +105,7 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		if(type === 'stop')
 		{
 			if(remotesocket) remotesocket.end();
-			console.log("stop pool conn");
+			console.log("stop pool conn to "+coin);
 		}
 		else if(type === 'push')
 		{
@@ -157,10 +155,10 @@ function createResponder(localsocket){
 		{
 			request.params.id=myWorkerId;
 			console.log('  Got share from worker');
-			if(connected) poolCB('push',JSON.stringify(request)+"\r\n");
+			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}else{
 			console.log(request.method+' from worker '+JSON.stringify(request));
-			if(connected) poolCB('push',JSON.stringify(request)+"\r\n");
+			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}
 	
 	}
@@ -177,6 +175,8 @@ var server = net.createServer(function (localsocket) {
 	var responderCB;
 
 	localsocket.on('data', function (data) {
+		
+		console.log(data.toString());
 
 		var request = JSON.parse(data);
 		
