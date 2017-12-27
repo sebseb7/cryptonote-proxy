@@ -1,19 +1,35 @@
 <!doctype html>
 <html>
 	<head>
+		<style>
+			.coin {
+				font-size: 250%;
+			}
+		</style>
 		<script src="/socket.io/socket.io.js"></script>
 		<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 		<script>
 
 			var socket;
-
 			$(function () {
 				socket = io();
+				socket.on('coins',function(coins){
+					$('#coins').empty();
+					for (var coin of coins){
+						$('#coins').append($('<li class="coin" id="switch_'+coin+'">'+coin+'</li>'));
+						$('#switch_'+coin).click(function(){
+							socket.emit('switch',this.id.substr(7));
+						});
+					}
+				});
+				socket.on('active',function(coin){
+					$('.coin').css('color', 'black');
+					$('#switch_'+coin).css('color', 'red');
+				});
 			});
 		</script>
 	</head>
 	<body>
-	
+		<ul id="coins"></ul>	
 	</body>
 </html>
-

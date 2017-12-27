@@ -29,23 +29,29 @@ process.on("uncaughtException", function(error) {
 
 var config = JSON.parse(fs.readFileSync('config.json'));
 var localport = config.workerport;
-var login = config.login;
+var pools = config.pools;
 
 console.log("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'78.46.85.142');
+	
 
 
 function attachPool(localsocket,coin,firstConn,setWorker) {
-	
-	console.log('connect to %s %s',login[coin].host, login[coin].port);
+
+	var idx;
+	for (var pool in pools) if (pools[pool].symbol === coin) idx = pool;
+
+	console.log(idx);
+
+	console.log('connect to %s %s',pools[idx].host, pools[idx].port);
 	
 	var remotesocket = new net.Socket();
-	remotesocket.connect(login[coin].port, login[coin].host);
+	remotesocket.connect(pools[idx].port, pools[idx].host);
 
 	remotesocket.on('connect', function (data) {
 
 		console.log('new login to '+coin);
-		var request = {"method":"login","params":{"login":login[coin].name,"pass":"x","agent":"cast_xmr/0.8.0"},"id":1};
+		var request = {"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"cast_xmr/0.8.0"},"id":1};
 		remotesocket.write(JSON.stringify(request)+"\r\n");
 	});
 	
@@ -222,25 +228,18 @@ server.listen(localport);
 
 console.log("start mining proxy on port %d ", localport);
 
-
 io.on('connection', function(socket){
-	socket.on('a', function(){
-		switchEmitter.emit('switch','etn');
-	});
-	socket.on('b', function(){
-		switchEmitter.emit('switch','itns');
-	});
-	socket.on('c', function(){
-		switchEmitter.emit('switch','xun');
-	});
-	socket.on('d', function(){
-		switchEmitter.emit('switch','msr');
-	});
-	socket.on('e', function(){
-	});
-	socket.on('f', function(){
-		switchEmitter.emit('switch','nh');
+
+	var coins = [];
+	for (var pool of pools) coins.push(pool.symbol);
+	var actice = config.default;
+
+	socket.emit('coins',coins);
+
+	socket.on('switch', function(coin){
+		console.log('->'+coin);
+		socket.emit('active',coin);
+		switchEmitter.emit('switch',coin);
 	});
 });
-
 
