@@ -176,8 +176,6 @@ var server = net.createServer(function (localsocket) {
 
 	localsocket.on('data', function (data) {
 		
-		console.log(data.toString());
-
 		var request = JSON.parse(data);
 		
 		if(request.method === 'login')
