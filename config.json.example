@@ -1,7 +1,7 @@
 {
 	"workerport":2349,
 	"httpport":2350,
-	"default":"itns",
+	"default":"nh",
 	"pools":
 	[ 
 		{
@@ -26,7 +26,7 @@
 			"port":"8889"
 		},{
 			"symbol":"nh",
-			"name":"38edfkjghdfkjhdfkjghdfgddfgfg",
+			"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",
 			"host":"cryptonight.eu.nicehash.com",
 			"port":"3355"
 		}

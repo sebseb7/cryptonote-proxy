@@ -20,6 +20,7 @@ app.get('/', function(req, res) {
 
 
 var switchEmitter = new events.EventEmitter();
+var blockEmitter = new events.EventEmitter();
 
 
 process.on("uncaughtException", function(error) {
@@ -32,8 +33,72 @@ var localport = config.workerport;
 var pools = config.pools;
 
 console.log("start http interface on port %d ", config.httpport);
-server.listen(config.httpport,'78.46.85.142');
+server.listen(config.httpport,'127.0.0.1');
+
+
+function jsonHttpRequest(host, port, data, callback, path){
+
+	path = path || '/json_rpc';
+
+	var options = {hostname: host,port: port,path: path,method: data ? 'POST' : 'GET',
+		headers: {'Content-Length': data.length,'Content-Type': 'application/json','Accept': 'application/json'}
+	};
+
+	var req = http.request(options, function(res){
+		var replyData = '';
+		res.setEncoding('utf8');
+		res.on('data', function(chunk){
+			replyData += chunk;
+		});
+		res.on('end', function(){
+			var replyJson;
+			try{
+				replyJson = JSON.parse(replyData);
+			}
+			catch(e){
+				callback(e);
+				return;
+			}
+			callback(null, replyJson);
+		});
+	});
+	req.on('error', function(e){
+		callback(e);
+	});
+	req.end(data);
+}
+
+function rpc(host, port, method, params, callback){
+
+	var data = JSON.stringify({id: "0",jsonrpc: "2.0",method: method,params: params});
+	jsonHttpRequest(host, port, data, function(error, replyJson){
+		if (error){
+			callback(error);
+			return;
+		}
+		callback(replyJson.error, replyJson.result)
+	});
+}
+
+
+
+var curr_height;
+var curr_diff;
+
+setInterval(function() {
+
+/*	rpc('127.0.0.1',48782,'getblocktemplate', {reserve_size: 8, wallet_address: 'iz49G7tTFhELwpJ9Nxk7C5AZQJ84cpxDs3dk44LsoUDFWk5Q2Xs36ac82Usp6vV3ScjA8i9ccwho8A2tqsRnVniL3B1n8Jpzs'}, function(has_error,data){
+
+		if(data.height != curr_height)
+		{
+			blockEmitter.emit('block','itns',data.height-1,data.difficulty);
+			curr_height = data.height;
+			curr_diff = data.difficulty;
+		}
 	
+	});
+*/
+}, 2000);
 
 
 function attachPool(localsocket,coin,firstConn,setWorker) {
@@ -226,18 +291,24 @@ server.listen(localport);
 
 console.log("start mining proxy on port %d ", localport);
 
+blockEmitter.on('block',function(coin,height,diff){
+	io.emit('block',coin,height,diff);	
+});
+
 io.on('connection', function(socket){
 
 	var coins = [];
 	for (var pool of pools) coins.push(pool.symbol);
-	var actice = config.default;
 
 	socket.emit('coins',coins);
+	socket.emit('block','itns',curr_height,curr_diff);	
+	
 
 	socket.on('switch', function(coin){
 		console.log('->'+coin);
 		socket.emit('active',coin);
 		switchEmitter.emit('switch',coin);
+		config.default=coin;
 	});
 });
 

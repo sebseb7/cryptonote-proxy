@@ -26,10 +26,17 @@
 					$('.coin').css('color', 'black');
 					$('#switch_'+coin).css('color', 'red');
 				});
+				socket.on('block',function(coin,height,diff){
+			
+					$('#text_'+coin).text(coin+' '+height+' '+((diff-640000000)/1000000));
+				
+				});
 			});
 		</script>
 	</head>
 	<body>
-		<ul id="coins"></ul>	
+		<ul id="coins"></ul>
+		<br/>
+		<p id="text_itns"></p>
 	</body>
 </html>
