@@ -8,7 +8,9 @@
         "url": "https://github.com/sebseb7/cryptonote-proxy"
     },
     "dependencies": {
-        "socket.io": "*"
+        "socket.io": "*",
+        "body-parser": "*",
+        "express": "*"
     },
     "engines": {
         "node": ">=4"

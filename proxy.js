@@ -1,6 +1,23 @@
 var net = require("net");
 var events = require('events');
 var fs = require('fs');
+var express = require('express');
+var app = require('express')();
+var http = require('http');
+var path = require('path');
+
+
+var server = http.createServer(app);
+var io = require('socket.io').listen(server);
+var bodyParser = require('body-parser');
+app.use(bodyParser.json()); // support json encoded bodies
+app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
+
+app.get('/', function(req, res) {
+	res.sendFile(path.resolve(__dirname+'/index.html'));
+});
+
+
 
 var switchEmitter = new events.EventEmitter();
 
@@ -14,10 +31,8 @@ var config = JSON.parse(fs.readFileSync('config.json'));
 var localport = config.workerport;
 var login = config.login;
 
-var io = require('socket.io')(config.httpport);
 console.log("start http interface on port %d ", config.httpport);
-
-
+server.listen(config.httpport,'78.46.85.142');
 
 
 function attachPool(localsocket,coin,firstConn,setWorker) {
@@ -124,9 +139,9 @@ function createResponder(localsocket){
 	
 	switchEmitter.on('switch',switchCB);
 
-	var callback = function(request){
+	var callback = function(type,request){
 	
-		if(request === 'stop')
+		if(type === 'stop')
 		{
 			poolCB('stop');
 			console.log('disconnect from pool');
@@ -143,12 +158,70 @@ function createResponder(localsocket){
 		}
 	
 	}
-	
-
-	
 
 	return callback;
 };
+
+var server = net.createServer(function (localsocket) {
+	
+	server.getConnections(function(err,number){
+		console.log(">>> connection #%d from %s:%d",number,localsocket.remoteAddress,localsocket.remotePort);
+	});
+
+	var responderCB;
+
+	localsocket.on('data', function (data) {
+
+		var request = JSON.parse(data);
+		
+		if(request.method === 'login')
+		{
+			console.log('got login from worker %s %s',request.params.login,request.params.pass);
+			responderCB = createResponder(localsocket);
+		
+		}else{
+			if(!responderCB)
+			{
+				console.log('something before login '+JSON.stringify(request));
+			}
+			else
+			{
+				responderCB('push',request);
+			}
+		}
+	});
+	
+	localsocket.on('error', function(text) {
+		console.log("worker error ",text);
+		if(!responderCB)
+		{
+			console.log('error before login');
+		}
+		else
+		{
+			responderCB('stop');
+		}
+	});
+
+	localsocket.on('close', function(had_error) {
+		console.log("worker gone "+had_error);
+	
+		if(!responderCB)
+		{
+			console.log('close before login');
+		}
+		else
+		{
+			responderCB('stop');
+		}
+	});
+
+});
+
+server.listen(localport);
+
+console.log("start mining proxy on port %d ", localport);
+
 
 io.on('connection', function(socket){
 	socket.on('a', function(){
@@ -170,70 +243,4 @@ io.on('connection', function(socket){
 	});
 });
 
-
-function createNewWorker(localsocket){
-	
-	var callback;
-
-	localsocket.on('data', function (data) {
-
-		var request = JSON.parse(data);
-		
-		if(request.method === 'login')
-		{
-			console.log('got login from worker %s %s',request.params.login,request.params.pass);
-			callback = createResponder(localsocket);
-		
-		}else{
-			if(!callback)
-			{
-				console.log('something before login '+JSON.stringify(request));
-			}
-			else
-			{
-				callback(request);
-			}
-		}
-	});
-	
-	localsocket.on('error', function(text) {
-		console.log("worker error ",text);
-		if(!callback)
-		{
-			console.log('end before login');
-		}
-		else
-		{
-			callback('stop');
-		}
-	});
-
-	localsocket.on('close', function(had_error) {
-		console.log("worker gone "+had_error);
-	
-		if(!callback)
-		{
-			console.log('end before login');
-		}
-		else
-		{
-			callback('stop');
-		}
-	});
-
-};
-
-var server = net.createServer(function (localsocket) {
-	
-	server.getConnections(function(err,number){
-		console.log(">>> connection #%d from %s:%d",number,localsocket.remoteAddress,localsocket.remotePort);
-	});
-
-	createNewWorker(localsocket);
-
-});
-
-server.listen(localport);
-
-console.log("start mining proxy on port %d ", localport);
 
