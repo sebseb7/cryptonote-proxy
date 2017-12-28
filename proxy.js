@@ -1,15 +1,16 @@
-var net = require("net");
-var events = require('events');
-var fs = require('fs');
-var express = require('express');
-var app = require('express')();
-var http = require('http');
-var path = require('path');
+const net = require("net");
+const events = require('events');
+const fs = require('fs');
+const express = require('express');
+const app = require('express')();
+const http = require('http');
+const path = require('path');
+const winston = require('winston');
 
 
-var server = http.createServer(app);
-var io = require('socket.io').listen(server);
-var bodyParser = require('body-parser');
+const server = http.createServer(app);
+const io = require('socket.io').listen(server);
+const bodyParser = require('body-parser');
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
@@ -17,23 +18,28 @@ app.get('/', function(req, res) {
 	res.sendFile(path.resolve(__dirname+'/index.html'));
 });
 
+const logger = new (winston.Logger)({
+	transports: [
+		new winston.transports.Console({timestamp:(new Date()).toLocaleTimeString(), colorize: true }),
+		new winston.transports.File({name:'a',json: false,filename: 'logfile.txt',timestamp:(new Date()).toLocaleTimeString(),level:'info'}),
+		new winston.transports.File({name:'b',json: false,filename: 'debuglog.txt',timestamp:(new Date()).toLocaleTimeString(),level:'debug'})
+	]
+});
 
-
-var switchEmitter = new events.EventEmitter();
-var blockEmitter = new events.EventEmitter();
+const switchEmitter = new events.EventEmitter();
+const blockEmitter = new events.EventEmitter();
 
 
 process.on("uncaughtException", function(error) {
-	console.error(error);
+	logger.error(error);
 });
 
+const config = JSON.parse(fs.readFileSync('config.json'));
+const localport = config.workerport;
+const pools = config.pools;
 
-var config = JSON.parse(fs.readFileSync('config.json'));
-var localport = config.workerport;
-var pools = config.pools;
-
-console.log("start http interface on port %d ", config.httpport);
-server.listen(config.httpport,'127.0.0.1');
+logger.info("start http interface on port %d ", config.httpport);
+server.listen(config.httpport,'::');
 
 
 function jsonHttpRequest(host, port, data, callback, path){
@@ -106,14 +112,14 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	var idx;
 	for (var pool in pools) if (pools[pool].symbol === coin) idx = pool;
 
-	console.log('connect to %s %s',pools[idx].host, pools[idx].port);
+	logger.info('connect to %s %s',pools[idx].host, pools[idx].port);
 	
 	var remotesocket = new net.Socket();
 	remotesocket.connect(pools[idx].port, pools[idx].host);
 
 	remotesocket.on('connect', function (data) {
 
-		console.log('new login to '+coin);
+		logger.info('new login to '+coin);
 		var request = {"id":1,"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 	});
@@ -124,13 +130,13 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 
 		if(request.result && request.result.job)
 		{
-			console.log('login reply from '+coin);
+			logger.info('login reply from '+coin);
 
 			setWorker(request.result.id);
 
 			if(! firstConn)
 			{
-				console.log('  new job from login reply');
+				logger.info('  new job from login reply');
 				var job = request.result.job;
 				
 				request = {
@@ -143,13 +149,13 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		}
 		else if(request.result && request.result.status === 'OK')
 		{
-			console.log('    share deliverd to '+coin+' '+request.result.status);
+			logger.info('    share deliverd to '+coin+' '+request.result.status);
 		}
 		else if(request.method) 
 		{
-			console.log(request.method+' from pool '+coin);
+			logger.info(request.method+' from pool '+coin);
 		}else{
-			console.log(data+' (else) from '+coin+' '+JSON.stringify(request));
+			logfer.info(data+' (else) from '+coin+' '+JSON.stringify(request));
 		}
 			
 		localsocket.write(JSON.stringify(request)+"\n");
@@ -157,11 +163,11 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	
 	
 	remotesocket.on('close', function(had_error,text) {
-		console.log("pool conn to "+coin+" ended");
-		if(had_error) console.log(' --'+text);
+		logger.info("pool conn to "+coin+" ended");
+		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
-		console.log("pool error "+coin+" ",text);
+		logger.error("pool error "+coin+" ",text);
 	});
 
 
@@ -170,7 +176,7 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		if(type === 'stop')
 		{
 			if(remotesocket) remotesocket.end();
-			console.log("stop pool conn to "+coin);
+			logger.info("stop pool conn to "+coin);
 		}
 		else if(type === 'push')
 		{
@@ -189,7 +195,7 @@ function createResponder(localsocket){
 	var connected = false;
 
 	var idCB = function(id){
-		console.log(' set worker response id to '+id);
+		logger.info(' set worker response id to '+id);
 		myWorkerId=id;
 		connected = true;
 	};
@@ -198,7 +204,7 @@ function createResponder(localsocket){
 
 	var switchCB = function(newcoin){
 
-		console.log('-- switch worker to '+newcoin);
+		logger.info('-- switch worker to '+newcoin);
 		connected = false;
 		
 		poolCB('stop');
@@ -213,16 +219,16 @@ function createResponder(localsocket){
 		if(type === 'stop')
 		{
 			poolCB('stop');
-			console.log('disconnect from pool');
+			logger.info('disconnect from pool');
 			switchEmitter.removeListener('switch', switchCB);
 		}
 		else if(request.method && request.method === 'submit') 
 		{
 			request.params.id=myWorkerId;
-			console.log('  Got share from worker');
+			logger.info('  Got share from worker');
 			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}else{
-			console.log(request.method+' from worker '+JSON.stringify(request));
+			logger.info(request.method+' from worker '+JSON.stringify(request));
 			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}
 	
@@ -231,10 +237,10 @@ function createResponder(localsocket){
 	return callback;
 };
 
-var server = net.createServer(function (localsocket) {
+const workerserver = net.createServer(function (localsocket) {
 	
-	server.getConnections(function(err,number){
-		console.log(">>> connection #%d from %s:%d",number,localsocket.remoteAddress,localsocket.remotePort);
+	workerserver.getConnections(function(err,number){
+		logger.info(">>> connection #%d from %s:%d",number,localsocket.remoteAddress,localsocket.remotePort);
 	});
 
 	var responderCB;
@@ -245,13 +251,13 @@ var server = net.createServer(function (localsocket) {
 		
 		if(request.method === 'login')
 		{
-			console.log('got login from worker %s %s',request.params.login,request.params.pass);
+			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
 			responderCB = createResponder(localsocket);
 		
 		}else{
 			if(!responderCB)
 			{
-				console.log('something before login '+JSON.stringify(request));
+				logger.warn('something before login '+JSON.stringify(request));
 			}
 			else
 			{
@@ -261,10 +267,10 @@ var server = net.createServer(function (localsocket) {
 	});
 	
 	localsocket.on('error', function(text) {
-		console.log("worker error ",text);
+		logger.error("worker error ",text);
 		if(!responderCB)
 		{
-			console.log('error before login');
+			logger.error('error before login');
 		}
 		else
 		{
@@ -273,11 +279,11 @@ var server = net.createServer(function (localsocket) {
 	});
 
 	localsocket.on('close', function(had_error) {
-		console.log("worker gone "+had_error);
+		logger.info("worker gone "+had_error);
 	
 		if(!responderCB)
 		{
-			console.log('close before login');
+			logger.warn('close before login');
 		}
 		else
 		{
@@ -287,9 +293,9 @@ var server = net.createServer(function (localsocket) {
 
 });
 
-server.listen(localport);
+workerserver.listen(localport);
 
-console.log("start mining proxy on port %d ", localport);
+logger.info("start mining proxy on port %d ", localport);
 
 blockEmitter.on('block',function(coin,height,diff){
 	io.emit('block',coin,height,diff);	
@@ -305,7 +311,7 @@ io.on('connection', function(socket){
 	
 
 	socket.on('switch', function(coin){
-		console.log('->'+coin);
+		logger.info('->'+coin);
 		socket.emit('active',coin);
 		switchEmitter.emit('switch',coin);
 		config.default=coin;

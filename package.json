@@ -1,18 +1,19 @@
 {
-    "name": "cryptonote-proxy",
-    "version": "0.0.1",
-    "license": "0bsd",
-    "authors": "seb",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/sebseb7/cryptonote-proxy"
-    },
-    "dependencies": {
-        "socket.io": "*",
-        "body-parser": "*",
-        "express": "*"
-    },
-    "engines": {
-        "node": ">=4"
-    }
+  "name": "cryptonote-proxy",
+  "version": "0.0.1",
+  "license": "0BSD",
+  "authors": "seb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sebseb7/cryptonote-proxy"
+  },
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "express": "^4.16.2",
+    "socket.io": "^2.0.4",
+    "winston": "^2.4.0"
+  },
+  "engines": {
+    "node": ">=4"
+  }
 }
