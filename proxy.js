@@ -20,92 +20,27 @@ app.get('/', function(req, res) {
 
 const logger = new (winston.Logger)({
 	transports: [
-		new winston.transports.Console({timestamp:(new Date()).toLocaleTimeString(), colorize: true }),
-		new winston.transports.File({name:'a',json: false,filename: 'logfile.txt',timestamp:(new Date()).toLocaleTimeString(),level:'info'}),
-		new winston.transports.File({name:'b',json: false,filename: 'debuglog.txt',timestamp:(new Date()).toLocaleTimeString(),level:'debug'})
+		new winston.transports.Console({timestamp:(new Date()).toLocaleTimeString(),colorize:true,level:'info'}),
+		new winston.transports.File({name:'a',json:false,filename:'logfile.txt',timestamp:(new Date()).toLocaleTimeString(),level:'debug'}),
 	]
 });
 
 const switchEmitter = new events.EventEmitter();
-const blockEmitter = new events.EventEmitter();
-
+switchEmitter.setMaxListeners(100);
 
 process.on("uncaughtException", function(error) {
 	logger.error(error);
 });
 
-const config = JSON.parse(fs.readFileSync('config.json'));
+var config = JSON.parse(fs.readFileSync('config.json'));
 const localport = config.workerport;
-const pools = config.pools;
+var pools = config.pools;
 
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
-
-function jsonHttpRequest(host, port, data, callback, path){
-
-	path = path || '/json_rpc';
-
-	var options = {hostname: host,port: port,path: path,method: data ? 'POST' : 'GET',
-		headers: {'Content-Length': data.length,'Content-Type': 'application/json','Accept': 'application/json'}
-	};
-
-	var req = http.request(options, function(res){
-		var replyData = '';
-		res.setEncoding('utf8');
-		res.on('data', function(chunk){
-			replyData += chunk;
-		});
-		res.on('end', function(){
-			var replyJson;
-			try{
-				replyJson = JSON.parse(replyData);
-			}
-			catch(e){
-				callback(e);
-				return;
-			}
-			callback(null, replyJson);
-		});
-	});
-	req.on('error', function(e){
-		callback(e);
-	});
-	req.end(data);
-}
-
-function rpc(host, port, method, params, callback){
-
-	var data = JSON.stringify({id: "0",jsonrpc: "2.0",method: method,params: params});
-	jsonHttpRequest(host, port, data, function(error, replyJson){
-		if (error){
-			callback(error);
-			return;
-		}
-		callback(replyJson.error, replyJson.result)
-	});
-}
-
-
-
 var curr_height;
 var curr_diff;
-
-setInterval(function() {
-
-/*	rpc('127.0.0.1',48782,'getblocktemplate', {reserve_size: 8, wallet_address: 'iz49G7tTFhELwpJ9Nxk7C5AZQJ84cpxDs3dk44LsoUDFWk5Q2Xs36ac82Usp6vV3ScjA8i9ccwho8A2tqsRnVniL3B1n8Jpzs'}, function(has_error,data){
-
-		if(data.height != curr_height)
-		{
-			blockEmitter.emit('block','itns',data.height-1,data.difficulty);
-			curr_height = data.height;
-			curr_diff = data.difficulty;
-		}
-	
-	});
-*/
-}, 2000);
-
 
 function attachPool(localsocket,coin,firstConn,setWorker) {
 
@@ -118,13 +53,17 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	remotesocket.connect(pools[idx].port, pools[idx].host);
 
 	remotesocket.on('connect', function (data) {
-
+		
+		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim());
+		
 		logger.info('new login to '+coin);
 		var request = {"id":1,"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 	});
 	
 	remotesocket.on('data', function(data) {
+
+		if(data)logger.debug('received from pool ('+coin+'):'+data.toString().trim());
 
 		var request = JSON.parse(data);
 
@@ -155,12 +94,11 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		{
 			logger.info(request.method+' from pool '+coin);
 		}else{
-			logfer.info(data+' (else) from '+coin+' '+JSON.stringify(request));
+			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request));
 		}
 			
 		localsocket.write(JSON.stringify(request)+"\n");
 	});
-	
 	
 	remotesocket.on('close', function(had_error,text) {
 		logger.info("pool conn to "+coin+" ended");
@@ -168,8 +106,10 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	});
 	remotesocket.on('error', function(text) {
 		logger.error("pool error "+coin+" ",text);
+		//set pool dirty of happens multiple times
+		//send share reject
+		switchEmitter.emit('switch',coin);
 	});
-
 
 	var poolCB = function(type,data){
 
@@ -182,7 +122,6 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		{
 			remotesocket.write(data);
 		}
-
 	}
 
 	return poolCB;
@@ -209,7 +148,6 @@ function createResponder(localsocket){
 		
 		poolCB('stop');
 		poolCB = attachPool(localsocket,newcoin,false,idCB);
-	
 	};
 	
 	switchEmitter.on('switch',switchCB);
@@ -231,7 +169,6 @@ function createResponder(localsocket){
 			logger.info(request.method+' from worker '+JSON.stringify(request));
 			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}
-	
 	}
 
 	return callback;
@@ -247,6 +184,7 @@ const workerserver = net.createServer(function (localsocket) {
 
 	localsocket.on('data', function (data) {
 		
+		if(data) logger.debug('received from woker ('+localsocket.remoteAddress+':'+localsocket.remotePort+'):'+data.toString().trim());
 		var request = JSON.parse(data);
 		
 		if(request.method === 'login')
@@ -279,7 +217,13 @@ const workerserver = net.createServer(function (localsocket) {
 	});
 
 	localsocket.on('close', function(had_error) {
-		logger.info("worker gone "+had_error);
+		
+		if(had_error) 
+			logger.error(error)
+		else
+			workerserver.getConnections(function(err,number){
+				logger.info("worker connection ended - connections left:"+number);
+			});
 	
 		if(!responderCB)
 		{
@@ -297,10 +241,6 @@ workerserver.listen(localport);
 
 logger.info("start mining proxy on port %d ", localport);
 
-blockEmitter.on('block',function(coin,height,diff){
-	io.emit('block',coin,height,diff);	
-});
-
 io.on('connection', function(socket){
 
 	var coins = [];
@@ -308,7 +248,15 @@ io.on('connection', function(socket){
 
 	socket.emit('coins',coins);
 	socket.emit('block','itns',curr_height,curr_diff);	
-	
+
+	socket.on('reload',function() {
+		config = JSON.parse(fs.readFileSync('config.json'));
+		pools = config.pools;
+		var coins = [];
+		for (var pool of pools) coins.push(pool.symbol);
+		socket.emit('coins',coins);
+		logger.info("pool config reloaded");
+	});
 
 	socket.on('switch', function(coin){
 		logger.info('->'+coin);
@@ -317,4 +265,3 @@ io.on('connection', function(socket){
 		config.default=coin;
 	});
 });
-
