@@ -4,5 +4,6 @@
 
 https://nodejs.org/
 
-
-adjust config.json and start with "node proxy.js"
+- install libraries with "npm i ."
+- adjust config.json
+- start with "node proxy.js"
