@@ -42,40 +42,40 @@ server.listen(config.httpport,'::');
 var curr_height;
 var curr_diff;
 
-function attachPool(localsocket,coin,firstConn,setWorker) {
+function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	var idx;
 	for (var pool in pools) if (pools[pool].symbol === coin) idx = pool;
 
-	logger.info('connect to %s %s',pools[idx].host, pools[idx].port);
+	logger.info('connect to %s %s ('+pass+')',pools[idx].host, pools[idx].port);
 	
 	var remotesocket = new net.Socket();
 	remotesocket.connect(pools[idx].port, pools[idx].host);
 
 	remotesocket.on('connect', function (data) {
 		
-		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim());
+		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 		
-		logger.info('new login to '+coin);
+		logger.info('new login to '+coin+' ('+pass+')');
 		var request = {"id":1,"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 	});
 	
 	remotesocket.on('data', function(data) {
 
-		if(data)logger.debug('received from pool ('+coin+'):'+data.toString().trim());
+		if(data)logger.debug('received from pool ('+coin+'):'+data.toString().trim()+' ('+pass+')');
 
 		var request = JSON.parse(data);
 
 		if(request.result && request.result.job)
 		{
-			logger.info('login reply from '+coin);
+			logger.info('login reply from '+coin+' ('+pass+')');
 
 			setWorker(request.result.id);
 
 			if(! firstConn)
 			{
-				logger.info('  new job from login reply');
+				logger.info('  new job from login reply ('+pass+')');
 				var job = request.result.job;
 				
 				request = {
@@ -88,24 +88,24 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		}
 		else if(request.result && request.result.status === 'OK')
 		{
-			logger.info('    share deliverd to '+coin+' '+request.result.status);
+			logger.info('    share deliverd to '+coin+' '+request.result.status+' ('+pass+')');
 		}
 		else if(request.method) 
 		{
 			logger.info(request.method+' from pool '+coin);
 		}else{
-			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request));
+			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 		}
 			
 		localsocket.write(JSON.stringify(request)+"\n");
 	});
 	
 	remotesocket.on('close', function(had_error,text) {
-		logger.info("pool conn to "+coin+" ended");
+		logger.info("pool conn to "+coin+" ended ("+pass+')');
 		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
-		logger.error("pool error "+coin+" ",text);
+		logger.error("pool error "+coin+' ('+pass+')',text);
 		//set pool dirty of happens multiple times
 		//send share reject
 		switchEmitter.emit('switch',coin);
@@ -116,7 +116,7 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 		if(type === 'stop')
 		{
 			if(remotesocket) remotesocket.end();
-			logger.info("stop pool conn to "+coin);
+			logger.info("stop pool conn to "+coin+' ('+pass+')');
 		}
 		else if(type === 'push')
 		{
@@ -127,27 +127,27 @@ function attachPool(localsocket,coin,firstConn,setWorker) {
 	return poolCB;
 };
 
-function createResponder(localsocket){
+function createResponder(localsocket,user,pass){
 
 	var myWorkerId;
 
 	var connected = false;
 
 	var idCB = function(id){
-		logger.info(' set worker response id to '+id);
+		logger.info(' set worker response id to '+id+' ('+pass+')');
 		myWorkerId=id;
 		connected = true;
 	};
 
-	var poolCB = attachPool(localsocket,config.default,true,idCB);
+	var poolCB = attachPool(localsocket,config.default,true,idCB,user,pass);
 
 	var switchCB = function(newcoin){
 
-		logger.info('-- switch worker to '+newcoin);
+		logger.info('-- switch worker to '+newcoin+' ('+pass+')');
 		connected = false;
 		
 		poolCB('stop');
-		poolCB = attachPool(localsocket,newcoin,false,idCB);
+		poolCB = attachPool(localsocket,newcoin,false,idCB,user,pass);
 	};
 	
 	switchEmitter.on('switch',switchCB);
@@ -157,16 +157,16 @@ function createResponder(localsocket){
 		if(type === 'stop')
 		{
 			poolCB('stop');
-			logger.info('disconnect from pool');
+			logger.info('disconnect from pool ('+pass+')');
 			switchEmitter.removeListener('switch', switchCB);
 		}
 		else if(request.method && request.method === 'submit') 
 		{
 			request.params.id=myWorkerId;
-			logger.info('  Got share from worker');
+			logger.info('  Got share from worker ('+pass+')');
 			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}else{
-			logger.info(request.method+' from worker '+JSON.stringify(request));
+			logger.info(request.method+' from worker '+JSON.stringify(request)+' ('+pass+')');
 			if(connected) poolCB('push',JSON.stringify(request)+"\n");
 		}
 	}
@@ -190,7 +190,7 @@ const workerserver = net.createServer(function (localsocket) {
 		if(request.method === 'login')
 		{
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
-			responderCB = createResponder(localsocket);
+			responderCB = createResponder(localsocket,request.params.login,request.params.pass);
 		
 		}else{
 			if(!responderCB)
