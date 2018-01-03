@@ -77,6 +77,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 			{
 				logger.info('  new job from login reply ('+pass+')');
 				var job = request.result.job;
+
 				
 				request = {
 								"jsonrpc":"2.0",
@@ -92,7 +93,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}
 		else if(request.method) 
 		{
-			logger.info(request.method+' from pool '+coin);
+			logger.info(request.method+' from pool '+coin+' ('+pass+')');
 		}else{
 			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 		}
