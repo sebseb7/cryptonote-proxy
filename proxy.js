@@ -6,6 +6,9 @@ const app = require('express')();
 const http = require('http');
 const path = require('path');
 const winston = require('winston');
+const bignum = require('bignum');
+const diff1 = bignum('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', 16);
+const diff2 = bignum('FFFFFFFF', 16);
 
 
 const server = http.createServer(app);
@@ -26,7 +29,7 @@ const logger = new (winston.Logger)({
 });
 
 const switchEmitter = new events.EventEmitter();
-switchEmitter.setMaxListeners(100);
+switchEmitter.setMaxListeners(200);
 
 process.on("uncaughtException", function(error) {
 	logger.error(error);
@@ -39,26 +42,28 @@ var pools = config.pools;
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
-var curr_height;
-var curr_diff;
-
 function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	var idx;
-	for (var pool in pools) if (pools[pool].symbol === coin) idx = pool;
+	for (var pool in pools[user]) if (pools[user][pool].symbol === coin) idx = pool;
 
-	logger.info('connect to %s %s ('+pass+')',pools[idx].host, pools[idx].port);
+	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
 	var remotesocket = new net.Socket();
-	remotesocket.connect(pools[idx].port, pools[idx].host);
+	remotesocket.connect(pools[user][idx].port, pools[user][idx].host);
+
+	var poolDiff=0;
+	const connectTime = ((new Date).getTime())/1000;
+	var shares=0;
 
 	remotesocket.on('connect', function (data) {
 		
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 		
 		logger.info('new login to '+coin+' ('+pass+')');
-		var request = {"id":1,"method":"login","params":{"login":pools[idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
+		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
+		
 	});
 	
 	remotesocket.on('data', function(data) {
@@ -66,15 +71,20 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		if(data)logger.debug('received from pool ('+coin+'):'+data.toString().trim()+' ('+pass+')');
 
 		var request = JSON.parse(data);
+		
 
 		if(request.result && request.result.job)
 		{
-			logger.info('login reply from '+coin+' ('+pass+')');
+			var mybuf = new  Buffer(request.result.job.target, "hex");
+			poolDiff = diff2.div(bignum.fromBuffer(mybuf.reverse())).toNumber();
+			
+			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
 
 			setWorker(request.result.id);
 
 			if(! firstConn)
 			{
+
 				logger.info('  new job from login reply ('+pass+')');
 				var job = request.result.job;
 
@@ -91,9 +101,16 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		{
 			logger.info('    share deliverd to '+coin+' '+request.result.status+' ('+pass+')');
 		}
+		else if(request.method && request.method === 'job')
+		{
+			var mybuf = new  Buffer(request.params.target, "hex");
+			poolDiff = diff2.div(bignum.fromBuffer(mybuf.reverse())).toNumber();
+			
+			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
+		}
 		else if(request.method) 
 		{
-			logger.info(request.method+' from pool '+coin+' ('+pass+')');
+			logger.info(request.method+' (?) from pool '+coin+' ('+pass+')');
 		}else{
 			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 		}
@@ -107,9 +124,10 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	});
 	remotesocket.on('error', function(text) {
 		logger.error("pool error "+coin+' ('+pass+')',text);
+		
 		//set pool dirty of happens multiple times
 		//send share reject
-		switchEmitter.emit('switch',coin);
+		//switchEmitter.emit('switch',coin);
 	});
 
 	var poolCB = function(type,data){
@@ -121,7 +139,16 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}
 		else if(type === 'push')
 		{
-			remotesocket.write(data);
+			if(data.method && data.method === 'submit') 
+			{
+				shares+=poolDiff/1000;
+				
+				const now = ((new Date).getTime())/1000;
+				const rate = shares / (now-connectTime);
+
+				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
+			}
+			remotesocket.write(JSON.stringify(data)+"\n");
 		}
 	}
 
@@ -165,10 +192,21 @@ function createResponder(localsocket,user,pass){
 		{
 			request.params.id=myWorkerId;
 			logger.info('  Got share from worker ('+pass+')');
-			if(connected) poolCB('push',JSON.stringify(request)+"\n");
+			
+			var mybuf = new  Buffer(request.params.result, "hex");
+
+
+			//logger.warn(mybuf);
+			//var hashArray = mybuf;
+			//var hashNum = bignum.fromBuffer(hashArray.reverse());
+			//var hashDiff = diff1.div(hashNum);
+			//logger.warn(hashDiff);
+
+
+			if(connected) poolCB('push',request);
 		}else{
 			logger.info(request.method+' from worker '+JSON.stringify(request)+' ('+pass+')');
-			if(connected) poolCB('push',JSON.stringify(request)+"\n");
+			if(connected) poolCB('push',request);
 		}
 	}
 
@@ -244,22 +282,21 @@ logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
 
-	var coins = [];
-	for (var pool of pools) coins.push(pool.symbol);
-
-	socket.emit('coins',coins);
-	socket.emit('block','itns',curr_height,curr_diff);	
-
-	socket.on('reload',function() {
+	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
 		var coins = [];
-		for (var pool of pools) coins.push(pool.symbol);
+		for (var pool of pools[user]) coins.push(pool.symbol);
 		socket.emit('coins',coins);
 		logger.info("pool config reloaded");
 	});
+	socket.on('user',function(user) {
+		var coins = [];
+		for (var pool of pools[user]) coins.push(pool.symbol);
+		socket.emit('coins',coins);
+	});
 
-	socket.on('switch', function(coin){
+	socket.on('switch', function(user,coin){
 		logger.info('->'+coin);
 		socket.emit('active',coin);
 		switchEmitter.emit('switch',coin);

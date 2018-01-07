@@ -12,7 +12,8 @@
     "body-parser": "^1.18.2",
     "express": "^4.16.2",
     "socket.io": "^2.0.4",
-    "winston": "^2.4.0"
+    "winston": "^2.4.0",
+    "bignum": "*"
   },
   "engines": {
     "node": ">=4"

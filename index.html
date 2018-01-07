@@ -11,6 +11,7 @@
 		<script>
 
 			var socket;
+			var user;
 			$(function () {
 				socket = io();
 				socket.on('coins',function(coins){
@@ -18,7 +19,8 @@
 					for (var coin of coins){
 						$('#coins').append($('<li class="coin" id="switch_'+coin+'">'+coin+'</li>'));
 						$('#switch_'+coin).click(function(){
-							socket.emit('switch',this.id.substr(7));
+							user =  $('#user').val();
+							socket.emit('switch',user,this.id.substr(7));
 						});
 					}
 				});
@@ -26,17 +28,23 @@
 					$('.coin').css('color', 'black');
 					$('#switch_'+coin).css('color', 'red');
 				});
-				socket.on('block',function(coin,height,diff){
-			
-					$('#text_'+coin).text(coin+' '+height+' '+((diff-640000000)/1000000));
-				
+				$('#rel').click(function(){
+					user =  $('#user').val();
+					$('#coins').empty();
+					socket.emit('reload',user);
+				});
+				$('#loaduser').click(function(){
+					user =  $('#user').val();
+					$('#coins').empty();
+					socket.emit('user',user);
 				});
 			});
 		</script>
 	</head>
 	<body>
+		<a id="loaduser" href="javascript:void();">LoadUser</a>: <input type="text" id="user"/>
 		<ul id="coins"></ul>
 		<br/>
-		<p id="text_itns"></p>
+		<p id="rel">reload config</p>
 	</body>
 </html>
