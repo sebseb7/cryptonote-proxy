@@ -9,11 +9,11 @@
     "url": "https://github.com/sebseb7/cryptonote-proxy.git"
   },
   "dependencies": {
+    "bignumber.js": "^5.0.0",
     "body-parser": "^1.18.2",
     "express": "^4.16.2",
     "socket.io": "^2.0.4",
-    "winston": "^2.4.0",
-    "bignum": "*"
+    "winston": "^2.4.0"
   },
   "engines": {
     "node": ">=4"

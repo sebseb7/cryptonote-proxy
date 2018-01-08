@@ -6,9 +6,8 @@ const app = require('express')();
 const http = require('http');
 const path = require('path');
 const winston = require('winston');
-const bignum = require('bignum');
-const diff1 = bignum('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', 16);
-const diff2 = bignum('FFFFFFFF', 16);
+const BN = require('bignumber.js');
+const diff2 = BN('ffffffff', 16);
 
 
 const server = http.createServer(app);
@@ -76,7 +75,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		if(request.result && request.result.job)
 		{
 			var mybuf = new  Buffer(request.result.job.target, "hex");
-			poolDiff = diff2.div(bignum.fromBuffer(mybuf.reverse())).toNumber();
+			
+			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toNumber();
 			
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
 
@@ -104,7 +104,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		else if(request.method && request.method === 'job')
 		{
 			var mybuf = new  Buffer(request.params.target, "hex");
-			poolDiff = diff2.div(bignum.fromBuffer(mybuf.reverse())).toNumber();
+			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toNumber();
 			
 			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
 		}
