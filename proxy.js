@@ -76,7 +76,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		{
 			var mybuf = new  Buffer(request.result.job.target, "hex");
 			
-			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toNumber();
+			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
 
@@ -104,7 +104,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		else if(request.method && request.method === 'job')
 		{
 			var mybuf = new  Buffer(request.params.target, "hex");
-			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toNumber();
+			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			
 			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
 		}
