@@ -9,4 +9,4 @@ https://nodejs.org/
 - start with "node proxy.js"
 - don't open index.html from this repo, to control the switch point your browser to the "httpport" as in config.json
 
-Support https://discord.gg/y9nEv7E
+Support https://discord.gg/h7JDXpT
