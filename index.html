@@ -1,14 +1,16 @@
 <!doctype html>
 <html>
-	<head>
-		<style>
-			.coin {
-				font-size: 250%;
-			}
-		</style>
-		<script src="/socket.io/socket.io.js"></script>
-		<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-		<script>
+<head>
+<title>CryptoKnight Proxy Mining Switch</title>
+<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+<!-- <style>
+.coin {
+font-size: 250%;
+}
+</style> -->
+<script src="/socket.io/socket.io.js"></script>
+<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+<script>
 
 			var socket;
 			var user;
@@ -40,11 +42,62 @@
 				});
 			});
 		</script>
-	</head>
-	<body>
-		<a id="loaduser" href="javascript:void();">LoadUser</a>: <input type="text" id="user"/>
-		<ul id="coins"></ul>
-		<br/>
-		<p id="rel">reload config</p>
-	</body>
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<STYLE TYPE="text/css">
+a{
+	color:#ff0000;
+	text-decoration:none;
+	}
+a:hover{
+	color:#000000;
+	text-decoration:none;
+	}
+.menu{
+	margin:20px 10px;
+	padding:0;
+	}
+.menu a{
+	font-size:12px;
+	font-weight:normal;
+	text-align:center;
+	display:block;
+	background:#eeeeee;
+	border:1px solid #dddddd;
+	color:#000000;
+	padding:10px;
+	margin:10px 0;
+	-moz-border-radius:2px;
+	-webkit-border-radius:2px;
+	border-radius:2px;
+	-moz-box-shadow:0 2px 4px #aaaaaa;
+	-webkit-box-shadow:0 2px 4px #aaaaaa;
+	box-shadow:0 2px 4px #aaaaaa;
+	}
+.menu a:hover{
+	color:#bbbbbb;
+	-moz-box-shadow:none;
+	-webkit-box-shadow:none;
+	box-shadow:none;
+	}
+</STYLE>
+</head>
+<body>
+<DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
+
+<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value="RIG1" placeholder="USER"/>
+<div class="menu">
+<a id="loaduser" href="javascript:void();">Load RIG</a>
+</div>
+
+<!-- <a id="loaduser" href="javascript:void();">LoadUser</a>: <input type="text" id="user"/> -->
+
+<div class="menu" id="coins"></div>
+
+<!-- <p id="rel">reload config</p> -->
+<div class="menu">
+<a id="rel">Reload Config</a>
+</div>
+</DIV>
+
+</body>
 </html>
