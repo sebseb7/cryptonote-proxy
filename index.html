@@ -60,7 +60,7 @@
 					}
 				});
 				socket.on('active',function(coin){
-					$('.coin').css('color', 'black');
+					$('.coin > span').css('color', 'white');
 					$('#switch_'+coin).css('color', 'red');
 				});
 				$('#rel').click(function(){
