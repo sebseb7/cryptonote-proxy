@@ -1,26 +1,59 @@
 <!doctype html>
 <html>
-<head>
-<title>CryptoKnight Proxy Mining Switch</title>
-<meta name="viewport" content="initial-scale=1, maximum-scale=1">
-<!-- <style>
-.coin {
-font-size: 250%;
-}
-</style> -->
-<script src="/socket.io/socket.io.js"></script>
-<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-<script>
+	<head>
+		<title>CryptoKnight Proxy Mining Switch</title>
+		<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+		
+		<script>
+
+			var docCookies = {
+				getItem: function (sKey) {
+					return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
+				},
+				setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+					if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { return false; }
+					var sExpires = "";
+					if (vEnd) {
+						switch (vEnd.constructor) {
+							case Number:
+								sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
+								break;
+							case String:
+								sExpires = "; expires=" + vEnd;
+								break;
+							case Date:
+								sExpires = "; expires=" + vEnd.toUTCString();
+								break;
+						}
+					}
+					document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
+					return true;
+				},
+				removeItem: function (sKey, sPath, sDomain) {
+					if (!sKey || !this.hasItem(sKey)) { return false; }
+					document.cookie = encodeURIComponent(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + ( sDomain ? "; domain=" + sDomain : "") + ( sPath ? "; path=" + sPath : "");
+					return true;
+				},
+				hasItem: function (sKey) {
+					return (new RegExp("(?:^|;\\s*)" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=")).test(document.cookie);
+				}
+			};
+
 
 			var socket;
 			var user;
 			$(function () {
+				$('#user').val(docCookies.getItem('login')||'');
 				socket = io();
 				socket.on('coins',function(coins){
 					$('#coins').empty();
 					for (var coin of coins){
-						$('#coins').append($('<li class="coin" id="switch_'+coin+'">'+coin+'</li>'));
-						$('#switch_'+coin).click(function(){
+						$('#coins').append($('<li class="coin"><span id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</span> '+(coin.login)+' </li>'));
+						if(coin.active)
+							$('#switch_'+coin.symbol).css('color', 'red');
+						$('#switch_'+coin.symbol).click(function(){
 							user =  $('#user').val();
 							socket.emit('switch',user,this.id.substr(7));
 						});
@@ -37,64 +70,79 @@ font-size: 250%;
 				});
 				$('#loaduser').click(function(){
 					user =  $('#user').val();
+					docCookies.setItem('login',user);
 					$('#coins').empty();
 					socket.emit('user',user);
 				});
 			});
 		</script>
-<link rel="icon" href="favicon.ico" type="image/x-icon">
-<STYLE TYPE="text/css">
-a{
-	color:#ff0000;
-	text-decoration:none;
-	}
-a:hover{
-	color:#000000;
-	text-decoration:none;
-	}
-.menu{
-	margin:20px 10px;
-	padding:0;
-	}
-.menu a{
-	font-size:12px;
-	font-weight:normal;
-	text-align:center;
-	display:block;
-	background:#eeeeee;
-	border:1px solid #dddddd;
-	color:#000000;
-	padding:10px;
-	margin:10px 0;
-	-moz-border-radius:2px;
-	-webkit-border-radius:2px;
-	border-radius:2px;
-	-moz-box-shadow:0 2px 4px #aaaaaa;
-	-webkit-box-shadow:0 2px 4px #aaaaaa;
-	box-shadow:0 2px 4px #aaaaaa;
-	}
-.menu a:hover{
-	color:#bbbbbb;
-	-moz-box-shadow:none;
-	-webkit-box-shadow:none;
-	box-shadow:none;
-	}
-</STYLE>
-</head>
-<body>
-<DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
+		
+		<link rel="icon" href="favicon.ico" type="image/x-icon">
+		<STYLE TYPE="text/css">
+			a{
+				color:#ff0000;
+				text-decoration:none;
+				}
+			a:hover{
+				color:#000000;
+				text-decoration:none;
+				}
+			.coin {
+				text-align: left;
+				font-size: 50%;
+			}
+			.coin > span{
+				font-size: 100%;
+				padding:1px;
+				cursor:pointer;
+				line-height:1.5em;
+				background-color:blue;
+				color:white;
+			}
+			.menu{
+				margin:20px 10px;
+				padding:0;
+				}
+			.menu a{
+				font-size:12px;
+				font-weight:normal;
+				text-align:center;
+				display:block;
+				background:#eeeeee;
+				border:1px solid #dddddd;
+				color:#000000;
+				padding:10px;
+				margin:10px 0;
+				-moz-border-radius:2px;
+				-webkit-border-radius:2px;
+				border-radius:2px;
+				-moz-box-shadow:0 2px 4px #aaaaaa;
+				-webkit-box-shadow:0 2px 4px #aaaaaa;
+				box-shadow:0 2px 4px #aaaaaa;
+				}
+			.menu a:hover{
+				color:#bbbbbb;
+				-moz-box-shadow:none;
+				-webkit-box-shadow:none;
+				box-shadow:none;
+				}
+		</STYLE>
+	</head>
+	<body>
 
-<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value="RIG1" placeholder="USER"/>
-<div class="menu">
-<a id="loaduser" href="javascript:void();">Load RIG</a>
-</div>
+		<DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
+			<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value="rig"/>
+			<div class="menu">
+				<a id="loaduser" href="javascript:void();">Load</a>
+			</div>
 
-<div class="menu" id="coins"></div>
+			<div class="menu" id="coins"></div>
 
-<div class="menu">
-<a id="rel">Reload Config</a>
-</div>
-</DIV>
+			<div class="menu">
+				<a id="rel">Reload Config</a>
+			</div>
+		</DIV>
 
-</body>
+	</body>
 </html>
+
