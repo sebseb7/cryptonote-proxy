@@ -122,6 +122,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	
 	remotesocket.on('close', function(had_error,text) {
 		logger.info("pool conn to "+coin+" ended ("+pass+')');
+		if(workerhashrates[user]) delete workerhashrates[user][pass];
 		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
