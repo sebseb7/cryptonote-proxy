@@ -38,6 +38,8 @@ var config = JSON.parse(fs.readFileSync('config.json'));
 const localport = config.workerport;
 var pools = config.pools;
 
+var workerhashrates = {};
+
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
@@ -145,6 +147,10 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				
 				const now = ((new Date).getTime())/1000;
 				const rate = shares / (now-connectTime);
+
+				if(!workerhashrates[user]) workerhashrates[user]={};
+
+				workerhashrates[user][pass]={time:now,hashrate:rate};
 
 				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
 			}
@@ -283,6 +289,8 @@ workerserver.listen(localport);
 logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
+	
+	var intervalObj;
 
 	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
@@ -296,6 +304,9 @@ io.on('connection', function(socket){
 		var coins = [];
 		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:config.default===pool.symbol?1:0});
 		socket.emit('coins',coins);
+		intervalObj = setInterval(() => {
+			socket.emit('workers',workerhashrates[user]||{});
+		}, 2000);
 	});
 
 	socket.on('switch', function(user,coin){
@@ -304,4 +315,9 @@ io.on('connection', function(socket){
 		switchEmitter.emit('switch',coin,user);
 		config.default=coin;
 	});
+
+	socket.on('disconnect', function(reason){
+		if(intervalObj) clearInterval(intervalObj);
+	});
+
 });
