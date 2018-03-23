@@ -50,7 +50,7 @@
 				socket.on('coins',function(coins){
 					$('#coins').empty();
 					for (var coin of coins){
-						$('#coins').append($('<li class="coin"><span id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</span> '+(coin.login)+' </li>'));
+						$('#coins').append($('<li class="coin"><span id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</span> '+(coin.url?('<a target="_blanc" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </li>'));
 						if(coin.active)
 							$('#switch_'+coin.symbol).css('color', 'red');
 						$('#switch_'+coin.symbol).click(function(){
@@ -83,6 +83,9 @@
 				color:#ff0000;
 				text-decoration:none;
 				}
+			a.pool {
+				color:#0000ff !important;
+				}
 			a:hover{
 				color:#000000;
 				text-decoration:none;
@@ -103,7 +106,7 @@
 				margin:20px 10px;
 				padding:0;
 				}
-			.menu a{
+			.menu > a{
 				font-size:12px;
 				font-weight:normal;
 				text-align:center;
@@ -120,7 +123,7 @@
 				-webkit-box-shadow:0 2px 4px #aaaaaa;
 				box-shadow:0 2px 4px #aaaaaa;
 				}
-			.menu a:hover{
+			.menu > a:hover{
 				color:#bbbbbb;
 				-moz-box-shadow:none;
 				-webkit-box-shadow:none;

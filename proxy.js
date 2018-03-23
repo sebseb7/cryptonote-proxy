@@ -60,7 +60,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 		
 		logger.info('new login to '+coin+' ('+pass+')');
-		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
+		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":pass,"agent":"XMRig/2.4.3"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 		
 	});
@@ -169,7 +169,9 @@ function createResponder(localsocket,user,pass){
 
 	var poolCB = attachPool(localsocket,config.default,true,idCB,user,pass);
 
-	var switchCB = function(newcoin){
+	var switchCB = function(newcoin,newuser){
+
+		if(user!==newuser) return;
 
 		logger.info('-- switch worker to '+newcoin+' ('+pass+')');
 		connected = false;
@@ -286,20 +288,20 @@ io.on('connection', function(socket){
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
 		var coins = [];
-		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name,active:config.default===pool.symbol?1:0});
+		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:config.default===pool.symbol?1:0});
 		socket.emit('coins',coins);
 		logger.info("pool config reloaded");
 	});
 	socket.on('user',function(user) {
 		var coins = [];
-		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name,active:config.default===pool.symbol?1:0});
+		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:config.default===pool.symbol?1:0});
 		socket.emit('coins',coins);
 	});
 
 	socket.on('switch', function(user,coin){
 		logger.info('->'+coin);
 		socket.emit('active',coin);
-		switchEmitter.emit('switch',coin);
+		switchEmitter.emit('switch',coin,user);
 		config.default=coin;
 	});
 });

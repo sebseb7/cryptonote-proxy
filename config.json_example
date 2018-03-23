@@ -9,22 +9,30 @@
 				"symbol":"itns",
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",
-				"port":"9999"
+				"port":"9999",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
 			},{
 				"symbol":"xun",
 				"name":"Xunhfkjfhlkdfjglkdfjgdlkfgjdlkfgjdflkg",
 				"host":"78.47.92.206",
-				"port":"9999"
+				"port":"9999",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
 			},{
 				"symbol":"etn",
 				"name":"etndfglkdjfgldkjfgkldjfglkjfg",
 				"host":"pool.etn.spacepools.org",
-				"port":"7777"
+				"port":"7777",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
 			},{
 				"symbol":"msr",
 				"name":"5q9dflkjdflgkdjfgdfgdfgdfgdfg",
 				"host":"masari.superpools.net",
-				"port":"8889"
+				"port":"8889",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
 			},{
 				"symbol":"nh",
 				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",
@@ -36,7 +44,9 @@
 				"symbol":"itns",
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",
-				"port":"9999"
+				"port":"9999",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
 			},{
 				"symbol":"nh",
 				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",
