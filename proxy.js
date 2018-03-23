@@ -174,7 +174,7 @@ function createResponder(localsocket,user,pass){
 		connected = true;
 	};
 
-	var poolCB = attachPool(localsocket,config.default,true,idCB,user,pass);
+	var poolCB = attachPool(localsocket,pools[user].default||config.default,true,idCB,user,pass);
 
 	var switchCB = function(newcoin,newuser){
 
@@ -297,14 +297,15 @@ io.on('connection', function(socket){
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
 		var coins = [];
-		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:config.default===pool.symbol?1:0});
+		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:((pools[user].default||config.default)===pool.symbol)?1:0});
 		socket.emit('coins',coins);
 		logger.info("pool config reloaded");
 	});
 	socket.on('user',function(user) {
 		var coins = [];
-		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:config.default===pool.symbol?1:0});
-		socket.emit('coins',coins);
+		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:((pools[user].default||config.default)===pool.symbol)?1:0});
+		socket.emit('coins','-> current for '+user+': '+coins);
+		logger.info((pools[user].default||config.default));
 		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 		if(intervalObj) clearInterval(intervalObj);
 		intervalObj = setInterval(() => {
@@ -313,10 +314,10 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('switch', function(user,coin){
-		logger.info('->'+coin);
+		logger.info('->'+coin+' ('+user+')');
 		socket.emit('active',coin);
 		switchEmitter.emit('switch',coin,user);
-		config.default=coin;
+		pools[user].default=coin;
 	});
 
 	socket.on('disconnect', function(reason){
