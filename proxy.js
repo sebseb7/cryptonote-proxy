@@ -304,9 +304,10 @@ io.on('connection', function(socket){
 		var coins = [];
 		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:config.default===pool.symbol?1:0});
 		socket.emit('coins',coins);
+		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 		if(intervalObj) clearInterval(intervalObj);
 		intervalObj = setInterval(() => {
-			socket.emit('workers',workerhashrates[user]||{});
+			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 		}, 2000);
 	});
 

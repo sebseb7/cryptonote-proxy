@@ -64,12 +64,16 @@
 					$('.coin > span').css('color', 'white');
 					$('#switch_'+coin).css('color', 'red');
 				});
-				socket.on('workers',function(list){
+				socket.on('workers',function(list,servertime){
 					$('#workers').empty();
-					jQuery.each(list, function (name, value) {
-						var date = jQuery.timeago(new Date(value.time * 1000));
-						$('#workers').append($('<span>'+name+' : '+date+' : '+value.hashrate.toFixed(2)+' kH/s<br/></span>'));
-					});
+					var combined=0;
+					var keys = Object.keys(list);
+					for(var worker of keys){
+						var date = jQuery.timeago(new Date(list[worker].time * 1000));
+						$('#workers').append($('<span>'+worker+' : '+date+' : '+list[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
+						if(	list[worker].time > (servertime-(60*5))) combined+=list[worker].hashrate;
+					}
+					$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
 				});
 				$('#rel').click(function(){
 					user =  $('#user').val();
