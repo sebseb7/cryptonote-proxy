@@ -51,7 +51,7 @@
 				socket.on('coins',function(coins){
 					$('#coins').empty();
 					for (var coin of coins){
-						$('#coins').append($('<li class="coin"><span id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</span> '+(coin.url?('<a target="_blanc" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </li>'));
+						$('#coins').append($('<li class="coin"><span id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</span> '+(coin.url?('<a target="_blank" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </li>'));
 						if(coin.active)
 							$('#switch_'+coin.symbol).css('color', 'red');
 						$('#switch_'+coin.symbol).click(function(){

@@ -309,6 +309,7 @@ io.on('connection', function(socket){
 		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 		if(intervalObj) clearInterval(intervalObj);
 		intervalObj = setInterval(() => {
+			socket.emit('active',(pools[user].default||config.default));
 			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 		}, 2000);
 	});
