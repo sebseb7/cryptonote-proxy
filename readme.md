@@ -10,3 +10,7 @@ https://nodejs.org/
 - don't open index.html from this repo, to control the switch point your browser to the "httpport" as in config.json
 
 Support https://discord.gg/h7JDXpT
+
+
+
+![switch](https://i.imgur.com/d017nWQ.png)
