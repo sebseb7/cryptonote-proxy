@@ -296,14 +296,31 @@ io.on('connection', function(socket){
 	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
+		
 		var coins = [];
-		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:((pools[user].default||config.default)===pool.symbol)?1:0});
+		for (var pool of pools[user]) 
+			coins.push({
+				symbol:pool.symbol,
+				login:pool.name.split('.')[0],
+				url:pool.url,
+				api:pool.api,
+				active:((pools[user].default||config.default)===pool.symbol)?1:0
+			});
+
 		socket.emit('coins',coins);
 		logger.info("pool config reloaded");
 	});
 	socket.on('user',function(user) {
 		var coins = [];
-		for (var pool of pools[user]) coins.push({symbol:pool.symbol,login:pool.name.split('.')[0],url:pool.url,api:pool.api,active:((pools[user].default||config.default)===pool.symbol)?1:0});
+		for (var pool of pools[user]) 
+			coins.push({
+				symbol:pool.symbol,
+				login:pool.name.split('.')[0],
+				url:pool.url?pool.url:'',
+				api:pool.api?pool.api:'',
+				active:((pools[user].default||config.default)===pool.symbol)?1:0
+			});
+
 		socket.emit('coins',coins);
 		logger.info('-> current for '+user+': '+(pools[user].default||config.default));
 		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);

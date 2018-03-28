@@ -9,6 +9,16 @@
 		
 		<script>
 
+			function getReadableHashRateString(hashrate){
+				var i = 0;
+				var byteUnits = [' H', ' KH', ' MH', ' GH', ' TH', ' PH' ];
+				while (hashrate > 1000){
+					hashrate = hashrate / 1000;
+					i++;
+				}
+				return hashrate.toFixed(2) + byteUnits[i];
+			}
+
 			var docCookies = {
 				getItem: function (sKey) {
 					return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
@@ -50,8 +60,22 @@
 				socket = io();
 				socket.on('coins',function(coins){
 					$('#coins').empty();
+					$('#coins').append($(
+									'<tr class="coin">'+ 
+										'<td></td>'+ 
+										'<td>Nethash</td>'+
+										'<td>LastBlock</td>'+
+										'<td></td>'+
+									'</tr>'));
+
 					for (var coin of coins){
-						$('#coins').append($('<li class="coin"><span id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</span> '+(coin.url?('<a target="_blank" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </li>'));
+						$('#coins').append($(
+										'<tr class="coin" data-api="'+coin.api+'">'+ 
+											'<td class="swit" id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</td>'+ 
+											'<td class="diff"></td>'+
+											'<td class="netblock"></td>'+
+											'<td>'+(coin.url?('<a target="_blank" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </td>'+
+										'</tr>'));
 						if(coin.active)
 							$('#switch_'+coin.symbol).css('color', 'red');
 						$('#switch_'+coin.symbol).click(function(){
@@ -86,7 +110,33 @@
 					$('#coins').empty();
 					socket.emit('user',user);
 				});
+
+
+				setInterval(() => {
+			
+					$( ".coin" ).each(function() {
+						if($( this ).data('api'))
+						{
+							var row = $( this );
+
+							$.ajax({
+								url: row.data('api') + '/stats',
+								dataType: 'json',
+								cache: 'false'
+							}).done(function(data){
+								var seconds = new Date().getTime() / 1000;
+								
+								row.find( ".diff" ).text(getReadableHashRateString(data.network.difficulty / data.config.coinDifficultyTarget) + '/sec');
+								row.find( ".netblock" ).text( (seconds - data.network.timestamp).toFixed(0)+'s');
+
+							});
+						}
+					});
+				}, 5000);
 			});
+
+
+
 		</script>
 		
 		<link rel="icon" href="favicon.ico" type="image/x-icon">
@@ -110,11 +160,13 @@
 				text-align: left;
 				font-size: 50%;
 			}
-			.coin > span{
+			.coin > td{
 				font-size: 100%;
-				padding:1px;
-				cursor:pointer;
+				padding:5px;
 				line-height:1.5em;
+			}
+			.coin > .swit{
+				cursor:pointer;
 				background-color:blue;
 				color:white;
 			}
@@ -152,10 +204,10 @@
 		<DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
 			<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value=""/>
 			<div class="menu">
-				<a id="loaduser" href="javascript:void();">Load</a>
+				<a id="loaduser" href="javascript:void(0);">Load</a>
 			</div>
 
-			<div class="menu" id="coins"></div>
+			<table id="coins"></table>
 
 			<div class="menu">
 				<a id="rel">Reload Config</a>
