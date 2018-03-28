@@ -11,6 +11,6 @@ https://nodejs.org/
 
 Support https://discord.gg/h7JDXpT
 
-
+Windows Installtion Guide: https://github.com/sebseb7/cryptonote-proxy/wiki/Installation-guide-for-cryptonote-proxy
 
 ![switch](https://i.imgur.com/d017nWQ.png)
