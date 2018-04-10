@@ -77,7 +77,7 @@
 											'<td>'+(coin.url?('<a target="_blank" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </td>'+
 										'</tr>'));
 						if(coin.active)
-							$('#switch_'+coin.symbol).css('color', 'red');
+							$('#switch_'+coin.symbol).addClass('active');
 						$('#switch_'+coin.symbol).click(function(){
 							user =  $('#user').val();
 							socket.emit('switch',user,this.id.substr(7));
@@ -86,7 +86,8 @@
 				});
 				socket.on('active',function(coin){
 					$('.coin > span').css('color', 'white');
-					$('#switch_'+coin).css('color', 'red');
+                    $('td[id^="switch_"]').removeClass('active');
+					$('#switch_'+coin).addClass('active');
 				});
 				socket.on('workers',function(list,servertime){
 					$('#workers').empty();
@@ -197,6 +198,9 @@
 				-webkit-box-shadow:none;
 				box-shadow:none;
 				}
+			.active {
+				color:red !important;
+			}
 		</STYLE>
 	</head>
 	<body>
