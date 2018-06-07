@@ -1,3 +1,5 @@
+[![IMG1](https://preview.ibb.co/mADHTT/Crypto_Knight_Proxy_Mining_Switch_1.png)](https://github.com/iisbetoq/cryptonote-proxy)
+
 Proxy by : https://github.com/sebseb7/cryptonote-proxy
 
 Auto Switch by : https://github.com/noemnoem/cryptonote-proxy
