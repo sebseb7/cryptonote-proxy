@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://preview.ibb.co/mADHTT/Crypto_Knight_Proxy_Mining_Switch_1.png">
+  <img src="https://image.ibb.co/h5USCo/Crypto_Knight_Proxy_Mining_Switch_4.png" alt="Crypto_Knight_Proxy_Mining_Switch_4" border="0">
 </p>
 
 
