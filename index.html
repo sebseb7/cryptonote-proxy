@@ -1,103 +1,286 @@
 <!doctype html>
 <html>
 <head>
-<title>CryptoKnight Proxy Mining Switch</title>
-<meta name="viewport" content="initial-scale=1, maximum-scale=1">
-<!-- <style>
-.coin {
-font-size: 250%;
-}
-</style> -->
-<script src="/socket.io/socket.io.js"></script>
-<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-<script>
+	<title>CryptoKnight Proxy Mining Auto Switch</title>
+	<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="//code.jquery.com/jquery-1.11.1.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.4.0/jquery.timeago.min.js"></script>
 
-			var socket;
-			var user;
-			$(function () {
-				socket = io();
-				socket.on('coins',function(coins){
-					$('#coins').empty();
-					for (var coin of coins){
-						$('#coins').append($('<li class="coin" id="switch_'+coin+'">'+coin+'</li>'));
-						$('#switch_'+coin).click(function(){
-							user =  $('#user').val();
-							socket.emit('switch',user,this.id.substr(7));
-						});
-					}
-				});
-				socket.on('active',function(coin){
-					$('.coin').css('color', 'black');
-					$('#switch_'+coin).css('color', 'red');
-				});
-				$('#rel').click(function(){
-					user =  $('#user').val();
-					$('#coins').empty();
-					socket.emit('reload',user);
-				});
-				$('#loaduser').click(function(){
-					user =  $('#user').val();
-					$('#coins').empty();
-					socket.emit('user',user);
-				});
-			});
-		</script>
-<link rel="icon" href="favicon.ico" type="image/x-icon">
-<STYLE TYPE="text/css">
-a{
-	color:#ff0000;
-	text-decoration:none;
-	}
-a:hover{
-	color:#000000;
-	text-decoration:none;
-	}
-.menu{
-	margin:20px 10px;
-	padding:0;
-	}
-.menu a{
-	font-size:12px;
-	font-weight:normal;
-	text-align:center;
-	display:block;
-	background:#eeeeee;
-	border:1px solid #dddddd;
-	color:#000000;
-	padding:10px;
-	margin:10px 0;
-	-moz-border-radius:2px;
-	-webkit-border-radius:2px;
-	border-radius:2px;
-	-moz-box-shadow:0 2px 4px #aaaaaa;
-	-webkit-box-shadow:0 2px 4px #aaaaaa;
-	box-shadow:0 2px 4px #aaaaaa;
-	}
-.menu a:hover{
-	color:#bbbbbb;
-	-moz-box-shadow:none;
-	-webkit-box-shadow:none;
-	box-shadow:none;
-	}
-</STYLE>
+	<script>
+
+      function getReadableHashRateString (hashrate) {
+        var i = 0
+        var byteUnits = [' H', ' KH', ' MH', ' GH', ' TH', ' PH']
+        while (hashrate > 1000) {
+          hashrate = hashrate / 1000
+          i++
+        }
+        return hashrate.toFixed(2) + byteUnits[i]
+      }
+
+      var docCookies = {
+        getItem: function (sKey) {
+          return decodeURIComponent(document.cookie.replace(new RegExp('(?:(?:^|.*;)\\s*' + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, '\\$&') + '\\s*\\=\\s*([^;]*).*$)|^.*$'), '$1')) || null
+        },
+        setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+          if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { return false }
+          var sExpires = ''
+          if (vEnd) {
+            switch (vEnd.constructor) {
+              case Number:
+                sExpires = vEnd === Infinity ? '; expires=Fri, 31 Dec 9999 23:59:59 GMT' : '; max-age=' + vEnd
+                break
+              case String:
+                sExpires = '; expires=' + vEnd
+                break
+              case Date:
+                sExpires = '; expires=' + vEnd.toUTCString()
+                break
+            }
+          }
+          document.cookie = encodeURIComponent(sKey) + '=' + encodeURIComponent(sValue) + sExpires + (sDomain ? '; domain=' + sDomain : '') + (sPath ? '; path=' + sPath : '') + (bSecure ? '; secure' : '')
+          return true
+        },
+        removeItem: function (sKey, sPath, sDomain) {
+          if (!sKey || !this.hasItem(sKey)) { return false }
+          document.cookie = encodeURIComponent(sKey) + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT' + ( sDomain ? '; domain=' + sDomain : '') + ( sPath ? '; path=' + sPath : '')
+          return true
+        },
+        hasItem: function (sKey) {
+          return (new RegExp('(?:^|;\\s*)' + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, '\\$&') + '\\s*\\=')).test(document.cookie)
+        }
+      }
+
+      var socket
+      var user
+      $(function () {
+        $('#user').val(docCookies.getItem('login') || '')
+        socket = io()
+        var combineRate = 7.4;
+        socket.on('coins', function (coins) {
+          $('#coins').empty()
+          $('#coins').append($(
+            '<tr class="coin">' +
+            '<td></td>' +
+            '<td>Nethash</td>' +
+            '<td>Poolhash</td>' +
+            '<td>NetLastBlock</td>' +
+            '<td>PoolLastBlock</td>' +
+            '<td>CurrEffort</td>' +
+            '<td>RevCoin</td>' +
+            '<td>RevBTC/XMR</td>' +
+            '<td></td>' +
+            '</tr>'))
+
+          for (var coin of coins) {
+            $('#coins').append($(
+              '<tr class="coin" data-api="' + coin.api + '" data-tick="' + coin.tick + '" data-symbol="' + coin.symbol + '">' +
+              '<td class="swit" id="switch_' + (coin.symbol) + '">' + (coin.symbol) + '</td>' +
+              '<td class="diff"></td>' +
+              '<td class="poolhash"></td>'+
+              '<td class="netblock"></td>' +
+              '<td class="poolblock"></td>' +
+              '<td class="curreffort"></td>' +
+              '<td class="revcoin"></td>' +
+              '<td class="revbtc"></td>' +
+              '<td>' + (coin.url ? ('<a target="_blank" class="pool" href="' + coin.url + '/?wallet=' + coin.login + '">Poolstats</a>') : coin.login) + ' </td>' +
+              '</tr>'))
+            if (coin.active) {
+              $('#switch_' + coin.symbol).css('color', 'red');
+            }
+            $('#switch_' + coin.symbol).click(function () {
+              user = $('#user').val()
+              socket.emit('switch', user, this.id.substr(7))
+            })
+          }
+        })
+        socket.on('active', function (coin) {
+          $('.coin > .swit').css('color', 'white')
+          $('#switch_' + coin).css('color', 'red')
+        })
+
+        socket.on('workers', function (list, servertime) {
+          $('#workers').empty()
+          var combined = 0
+          var keys = Object.keys(list)
+          for (var worker of keys) {
+            var date = jQuery.timeago(new Date(list[worker].time * 1000))
+            $('#workers').append($('<span>' + worker + ' : ' + date + ' : ' + list[worker].hashrate.toFixed(2) + ' kH/s<br/></span>'))
+            if (list[worker].time > (servertime - (60 * 5))) combined += list[worker].hashrate
+          }
+          combineRate = combined * 1024;
+//          combineRate = 7400;
+          $('#workers').append($('<span>combined : ' + combined.toFixed(2) + ' kH/s<br/></span>'))
+        })
+        $('#rel').click(function () {
+          user = $('#user').val()
+          $('#coins').empty()
+          socket.emit('reload', user)
+        })
+        $('#loaduser').click(function () {
+          user = $('#user').val()
+          docCookies.setItem('login', user)
+          $('#coins').empty()
+          socket.emit('user', user)
+        })
+
+        var bestcoin = '';
+
+        setInterval(() => {
+
+          var bestcoinrev = 0.0
+          $('.coin').each(function () {
+            var revcoin = 0.0
+            var lastStats
+            if ($(this).data('api')) {
+              var row = $(this)
+
+              $.ajax({
+                url: row.data('api') + '/stats',
+                dataType: 'json',
+                cache: 'false'
+              }).done(function (data) {
+                lastStats = data
+                var seconds = new Date().getTime() / 1000
+
+                row.find('.diff').text(getReadableHashRateString(data.network.difficulty / data.config.coinDifficultyTarget) + '/sec')
+                row.find('.netblock').text((seconds - data.network.timestamp).toFixed(0) + 's')
+                row.find(".poolhash").text(getReadableHashRateString(data.pool.hashrate)+'/s');
+                row.find(".poolblock").text(jQuery.timeago(new Date(parseInt(data.pool.lastBlockFound))));
+                row.find('.curreffort').text((data.pool.roundHashes / data.network.difficulty * 100).toFixed(1) + '%')
+                var reward = data.network.reward;
+//                if(data.network.coinbase){
+//                  reward = reward - data.network.coinbase;
+//                }
+                revcoin = (combineRate * 86400 / data.network.difficulty * reward)
+                revcoin = getReadableCoins(revcoin, 2, true)
+                row.find('.revcoin').text(revcoin)
+
+                if (row.data('tick')) {
+
+                  var revbtc = 0
+                  $.get(row.data('tick'), function (data) {
+
+                    if (data.error) {
+                      console.log('ERRORRRR')
+                      return
+                    }
+                    if(row.data('tick').includes("tradeogre")) {
+                      revbtc = parseFloat(data['bid']) * revcoin;
+                    } else if(row.data('tick').includes("altex")){
+                      revbtc = parseFloat(data.data[data.data.length - 1].price) * revcoin;
+                    }
+
+
+                    row.find('.revbtc').text((revbtc).toFixed(8))
+                  }, 'json')
+
+                }
+              })
+            }
+
+            function getReadableCoins (coins, digits, withoutSymbol) {
+              var amount = (parseInt(coins || 0) / lastStats.config.coinUnits).toFixed(digits || lastStats.config.coinUnits.toString().length - 1)
+              return amount + (withoutSymbol ? '' : (' ' + lastStats.config.symbol))
+            }
+          })
+        }, 5000)
+
+
+      })
+
+
+	</script>
+
+	<link rel="icon" href="favicon.ico" type="image/x-icon">
+	<STYLE TYPE="text/css">
+		a {
+			color: #ff0000;
+			text-decoration: none;
+		}
+
+		a.pool {
+			color: #0000ff !important;
+		}
+
+		a:hover {
+			color: #000000;
+			text-decoration: none;
+		}
+
+		.coin {
+			text-align: left;
+			font-size: 50%;
+		}
+
+		.workers {
+			text-align: left;
+			font-size: 50%;
+		}
+
+		.coin > td {
+			font-size: 100%;
+			padding: 5px;
+			line-height: 1.5em;
+		}
+
+		.coin > .swit {
+			cursor: pointer;
+			background-color: blue;
+			color: white;
+		}
+
+		.menu {
+			margin: 20px 10px;
+			padding: 0;
+		}
+
+		.menu > a {
+			font-size: 12px;
+			font-weight: normal;
+			text-align: center;
+			display: block;
+			background: #eeeeee;
+			border: 1px solid #dddddd;
+			color: #000000;
+			padding: 10px;
+			margin: 10px 0;
+			-moz-border-radius: 2px;
+			-webkit-border-radius: 2px;
+			border-radius: 2px;
+			-moz-box-shadow: 0 2px 4px #aaaaaa;
+			-webkit-box-shadow: 0 2px 4px #aaaaaa;
+			box-shadow: 0 2px 4px #aaaaaa;
+		}
+
+		.menu > a:hover {
+			color: #bbbbbb;
+			-moz-box-shadow: none;
+			-webkit-box-shadow: none;
+			box-shadow: none;
+		}
+	</STYLE>
 </head>
 <body>
+
 <DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
+	<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace"
+		   id="user" type="text" value=""/>
+	<div class="menu">
+		<a id="loaduser" href="javascript:void(0);">Load</a>
+	</div>
 
-<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value="RIG1" placeholder="USER"/>
-<div class="menu">
-<a id="loaduser" href="javascript:void();">Load RIG</a>
-</div>
+	<table id="coins"></table>
 
-<!-- <a id="loaduser" href="javascript:void();">LoadUser</a>: <input type="text" id="user"/> -->
+	<div class="menu">
+		<a id="rel">Reload Config</a>
+	</div>
 
-<div class="menu" id="coins"></div>
-
-<!-- <p id="rel">reload config</p> -->
-<div class="menu">
-<a id="rel">Reload Config</a>
-</div>
+	<div class="workers" id="workers"></div>
+	<div class="bestrev" id="bestrev"></div>
 </DIV>
 
 </body>
 </html>
+
