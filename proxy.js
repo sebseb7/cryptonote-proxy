@@ -8,11 +8,16 @@ const path = require('path');
 const winston = require('winston');
 const BN = require('bignumber.js');
 const diff2 = BN('ffffffff', 16);
+var request = require('request');
+const TeleBot = require('telebot');
+const fetch = require("node-fetch");
 
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
 const bodyParser = require('body-parser');
+const ioClient = require('socket.io-client')
+
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
@@ -38,6 +43,12 @@ var config = JSON.parse(fs.readFileSync('config.json'));
 const localport = config.workerport;
 var pools = config.pools;
 
+var workerhashrates = {};
+
+const telebot = config.telegram && config.telegram.token? new TeleBot(config.telegram.token):null;
+if(telebot)
+ telebot.on(['/id'], (msg) => msg.reply.text(msg.from.id));
+
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
@@ -60,7 +71,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 		
 		logger.info('new login to '+coin+' ('+pass+')');
-		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":"x","agent":"XMRig/2.4.3"}};
+		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":pass,"agent":"XMRig/2.5.0"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 		
 	});
@@ -120,6 +131,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	
 	remotesocket.on('close', function(had_error,text) {
 		logger.info("pool conn to "+coin+" ended ("+pass+')');
+		if(workerhashrates[user]) delete workerhashrates[user][pass];
 		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
@@ -146,6 +158,10 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				const now = ((new Date).getTime())/1000;
 				const rate = shares / (now-connectTime);
 
+				if(!workerhashrates[user]) workerhashrates[user]={};
+
+				workerhashrates[user][pass]={time:now,hashrate:rate};
+
 				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
 			}
 			remotesocket.write(JSON.stringify(data)+"\n");
@@ -154,6 +170,17 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	return poolCB;
 };
+if(telebot) {
+  telebot.on(/^\/hr (.+)$/, (msg, props) => {
+    const user = props.match[1];
+    var whs = "hashrate:\n";
+    for (var worker in workerhashrates[user]) {
+      whs = whs + worker + ": " + workerhashrates[user][worker].hashrate.toFixed(2) + " kH/s\n";
+    }
+
+    return telebot.sendMessage(msg.from.id, whs);
+  });
+}
 
 function createResponder(localsocket,user,pass){
 
@@ -167,9 +194,11 @@ function createResponder(localsocket,user,pass){
 		connected = true;
 	};
 
-	var poolCB = attachPool(localsocket,config.default,true,idCB,user,pass);
+	var poolCB = attachPool(localsocket,pools[user].default||config.default,true,idCB,user,pass);
 
-	var switchCB = function(newcoin){
+	var switchCB = function(newcoin,newuser){
+
+		if(user!==newuser) return;
 
 		logger.info('-- switch worker to '+newcoin+' ('+pass+')');
 		connected = false;
@@ -281,25 +310,177 @@ workerserver.listen(localport);
 logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
+	
+	var intervalObj;
 
 	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
+		
 		var coins = [];
-		for (var pool of pools[user]) coins.push(pool.symbol);
+		for (var pool of pools[user]) 
+			coins.push({
+				symbol:pool.symbol,
+				login:pool.name.split('.')[0],
+				url:pool.url,
+				api:pool.api,
+				tick: pool.tick,
+				active:((pools[user].default||config.default)===pool.symbol)?1:0
+			});
+
 		socket.emit('coins',coins);
 		logger.info("pool config reloaded");
 	});
 	socket.on('user',function(user) {
 		var coins = [];
-		for (var pool of pools[user]) coins.push(pool.symbol);
+		for (var pool of pools[user]) 
+			coins.push({
+				symbol:pool.symbol,
+				login:pool.name.split('.')[0],
+				url:pool.url?pool.url:'',
+				api:pool.api?pool.api:'',
+        tick: pool.tick,
+				active:((pools[user].default||config.default)===pool.symbol)?1:0
+			});
+
 		socket.emit('coins',coins);
+		logger.info('-> current for '+user+': '+(pools[user].default||config.default));
+		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+		if(intervalObj) clearInterval(intervalObj);
+		intervalObj = setInterval(() => {
+			socket.emit('active',(pools[user].default||config.default));
+			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+		}, 2000);
 	});
 
 	socket.on('switch', function(user,coin){
-		logger.info('->'+coin);
+		logger.info('->'+coin+' ('+user+')');
+		pools[user].default=coin;
+		switchEmitter.emit('switch',coin,user);
 		socket.emit('active',coin);
-		switchEmitter.emit('switch',coin);
-		config.default=coin;
+    if(telebot && config.telegram.chat_id && config.telegram.token) {
+      telebot.sendMessage(config.telegram.chat_id, 'switched to '+coin+' ('+user+')');
+    }
 	});
+
+	socket.on('disconnect', function(reason){
+		if(intervalObj) clearInterval(intervalObj);
+	});
+
+
 });
+if(telebot)
+	telebot.start();
+
+const getPrice = async url => {
+  try {
+    const response = await fetch(url);
+    const json = await response.json();
+
+    return json;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const getAltexPrice = async url => {
+  try {
+    const response = await fetch(url);
+    const json = await response.json();
+		let res = {};
+		res.bid = json.data[json.data.length - 1].price;
+    return res;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const getStats = async url => {
+  try {
+    const response = await fetch(url);
+    const json = await response.json();
+    let res = {};
+    res.reward = json.network.reward;
+    res.coinbase = json.network.coinbase;
+    res.difficulty = json.network.difficulty;
+    res.coinUnits = json.config.coinUnits
+    return res;
+  } catch (error) {
+    console.log(error);
+  }
+};
+var lastWinner = config.default;
+const client = ioClient.connect("http://localhost:" + config.httpport);
+function calculateAutoswitch() {
+  logger.info(' -> default ' + config.default);
+  logger.info(' -> treshold ' + config.autoswitch.treshold);
+	let hr = 7200; // TODO use combined hashrate
+  for (pool in pools) {
+  	let prices = [];
+    logger.info(' -> pool ' + pool);
+
+    for (index = 0, len = pools[pool].length; index < len; ++index) {
+      let tickUrl = pools[pool][index].tick;
+      if(tickUrl.includes("tradeogre")) {
+        prices.push(getPrice(tickUrl));
+      } else if(tickUrl.includes("altex")){
+        prices.push(getAltexPrice(tickUrl));
+			}
+    }
+    Promise.all(prices).then(function(prices) {
+      let stats = [];
+      for (index = 0, len = pools[pool].length; index < len; ++index) {
+
+        let statUrl = pools[pool][index].api + "/stats";
+        stats.push(getStats(statUrl));
+      }
+
+      Promise.all(stats).then(function(stats) {
+        let bestcoinrev = 0.0;
+        let newWinner = lastWinner;
+        for (index = 0, len = pools[pool].length; index < len; ++index) {
+          let symbol = pools[pool][index].symbol;
+          // logger.info(symbol + ' -> reward ' + stats[index].reward);
+          let reward = stats[index].reward;
+          // if(stats[index].coinbase){
+          //   reward = reward - stats[index].coinbase;
+            // logger.info(symbol + ' -> coinbase ' + stats[index].coinbase);
+          // }
+          let revcoin = (hr * 86400 / stats[index].difficulty * reward)
+          revcoin = getReadableCoins(revcoin, 2, true, stats[index].coinUnits, symbol)
+          let revBTC = revcoin * prices[index].bid;
+          let revCompete = revBTC;
+          if(symbol == lastWinner){
+          	revCompete = revBTC * (100.0 + parseFloat(config.autoswitch.treshold))/100.0;
+					}
+
+          logger.info('[autoswitchcalc] ' + symbol + ' -> rev-'+symbol+': ' + revcoin + '\t\trev BTC: ' + revBTC  + '\t\tbid price: ' + prices[index].bid+ '\t\trev Compete: ' + revCompete);
+          if (revCompete > bestcoinrev) {
+            bestcoinrev = revCompete
+            newWinner = symbol
+          }
+        }
+
+				if(lastWinner != newWinner){
+          logger.info(' -> winner: ' + newWinner);
+          lastWinner = newWinner;
+          client.emit('switch', pool, newWinner)
+				}
+
+
+
+        function getReadableCoins (coins, digits, withoutSymbol, coinUnits, symbol) {
+          var amount = (parseInt(coins || 0) / coinUnits).toFixed(digits || coinUnits.toString().length - 1)
+          return amount + (withoutSymbol ? '' : (' ' + symbol))
+        }
+      });
+
+    });
+  }
+}
+
+var period = parseInt(config.autoswitch.period);
+if(period > 0) {
+  calculateAutoswitch();
+  setInterval(calculateAutoswitch, period * 60000);
+}
