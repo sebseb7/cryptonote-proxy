@@ -85,7 +85,7 @@
 					}
 				});
 				socket.on('active',function(coin){
-					$('.coin > span').css('color', 'white');
+					$('.coin > .swit').css('color', 'white');
 					$('#switch_'+coin).css('color', 'red');
 				});
 				socket.on('workers',function(list,servertime){

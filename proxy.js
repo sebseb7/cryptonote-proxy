@@ -333,9 +333,9 @@ io.on('connection', function(socket){
 
 	socket.on('switch', function(user,coin){
 		logger.info('->'+coin+' ('+user+')');
-		socket.emit('active',coin);
-		switchEmitter.emit('switch',coin,user);
 		pools[user].default=coin;
+		switchEmitter.emit('switch',coin,user);
+		socket.emit('active',coin);
 	});
 
 	socket.on('disconnect', function(reason){
