@@ -62,7 +62,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 		
 		logger.info('new login to '+coin+' ('+pass+')');
-		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":pass,"agent":"XMRig/2.5.0"}};
+		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":pass,"agent":"SRBMiner Cryptonight AMD GPU miner/1.6.8"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 		
 	});
